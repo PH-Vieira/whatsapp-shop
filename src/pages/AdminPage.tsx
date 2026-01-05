@@ -406,7 +406,7 @@ export default function AdminPage() {
                     Novo Sorteio
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Criar Sorteio</DialogTitle>
                   </DialogHeader>
