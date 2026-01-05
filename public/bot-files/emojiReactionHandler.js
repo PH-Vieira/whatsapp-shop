@@ -19,10 +19,36 @@ function normalizeNumber(input) {
 }
 
 /**
- * Busca os emojis ativos de um usuário
- * @param {string} whatsappNumber - Número do WhatsApp
- * @returns {Promise<string[]>} - Array de emojis ativos
+ * Extrai o número real do sender (funciona para grupos e privado)
+ * Em grupos, pode vir como @lid, então precisamos resolver
  */
+async function extractRealNumber(sock, msg) {
+    const isGroup = msg.key.remoteJid?.endsWith('@g.us');
+    let sender = isGroup ? msg.key.participant : msg.key.remoteJid;
+    
+    if (!sender) return null;
+    
+    // Se for @lid, tenta resolver para número real
+    if (sender.includes('@lid')) {
+        // Tenta pegar do participantAlt se disponível
+        if (msg.key.participantAlt) {
+            sender = msg.key.participantAlt;
+        } else {
+            // Tenta usar o signal store para resolver
+            try {
+                const store = sock?.authState?.creds?.me;
+                // Fallback: remove @lid e usa o que temos
+                sender = sender.replace('@lid', '@s.whatsapp.net');
+            } catch (e) {
+                console.log('[Emoji] Não foi possível resolver @lid:', e.message);
+            }
+        }
+    }
+    
+    // Limpa o número
+    return sender.replace('@s.whatsapp.net', '').replace('@lid', '');
+}
+
 /**
  * Busca o emoji ativo de um usuário (apenas um por vez)
  * @param {string} whatsappNumber - Número do WhatsApp
@@ -60,12 +86,26 @@ async function getUserActiveEmoji(whatsappNumber) {
 
 /**
  * Ativa um emoji comprado pelo usuário
- * @param {string} whatsappNumber - Número do WhatsApp
+ * @param {string|object} whatsappNumberOrMsg - Número do WhatsApp OU objeto msg do Baileys
  * @param {string} productId - ID do produto (emoji)
  * @param {string} emoji - O emoji a ser ativado (ex: '❤️')
+ * @param {object} sock - Socket do Baileys (obrigatório se passar msg)
  */
-async function activateEmoji(whatsappNumber, productId, emoji) {
-    const cleanNumber = normalizeNumber(whatsappNumber);
+async function activateEmoji(whatsappNumberOrMsg, productId, emoji, sock = null) {
+    let cleanNumber;
+    
+    // Se for um objeto (msg do Baileys), extrai o número real
+    if (typeof whatsappNumberOrMsg === 'object' && whatsappNumberOrMsg.key) {
+        cleanNumber = await extractRealNumber(sock, whatsappNumberOrMsg);
+        if (!cleanNumber) {
+            return { error: 'Não foi possível identificar o usuário' };
+        }
+        cleanNumber = normalizeNumber(cleanNumber);
+    } else {
+        cleanNumber = normalizeNumber(whatsappNumberOrMsg);
+    }
+    
+    console.log('[activateEmoji DEBUG] cleanNumber:', cleanNumber);
     
     const { data: user } = await supabase
         .from('users')
@@ -74,6 +114,12 @@ async function activateEmoji(whatsappNumber, productId, emoji) {
         .maybeSingle();
     
     if (!user) return { error: 'Usuário não encontrado' };
+    
+    // Desativa todos os emojis primeiro
+    await supabase
+        .from('user_active_emojis')
+        .update({ is_active: false })
+        .eq('user_id', user.id);
     
     // Verifica se o usuário possui o item
     const { data: userItem } = await supabase
@@ -108,9 +154,25 @@ async function activateEmoji(whatsappNumber, productId, emoji) {
 
 /**
  * Desativa um emoji
+ * @param {string|object} whatsappNumberOrMsg - Número do WhatsApp OU objeto msg do Baileys
+ * @param {string} productId - ID do produto (emoji)
+ * @param {object} sock - Socket do Baileys (obrigatório se passar msg)
  */
-async function deactivateEmoji(whatsappNumber, productId) {
-    const cleanNumber = normalizeNumber(whatsappNumber);
+async function deactivateEmoji(whatsappNumberOrMsg, productId, sock = null) {
+    let cleanNumber;
+    
+    // Se for um objeto (msg do Baileys), extrai o número real
+    if (typeof whatsappNumberOrMsg === 'object' && whatsappNumberOrMsg.key) {
+        cleanNumber = await extractRealNumber(sock, whatsappNumberOrMsg);
+        if (!cleanNumber) {
+            return { error: 'Não foi possível identificar o usuário' };
+        }
+        cleanNumber = normalizeNumber(cleanNumber);
+    } else {
+        cleanNumber = normalizeNumber(whatsappNumberOrMsg);
+    }
+    
+    console.log('[deactivateEmoji DEBUG] cleanNumber:', cleanNumber);
     
     const { data: user } = await supabase
         .from('users')
@@ -156,37 +218,6 @@ async function reactToMessage(sock, msg, emoji) {
     } catch (error) {
         console.error('[Emoji] Erro ao reagir:', error);
     }
-}
-
-/**
- * Extrai o número real do sender (funciona para grupos e privado)
- * Em grupos, pode vir como @lid, então precisamos resolver
- */
-async function extractRealNumber(sock, msg) {
-    const isGroup = msg.key.remoteJid?.endsWith('@g.us');
-    let sender = isGroup ? msg.key.participant : msg.key.remoteJid;
-    
-    if (!sender) return null;
-    
-    // Se for @lid, tenta resolver para número real
-    if (sender.includes('@lid')) {
-        // Tenta pegar do participantAlt se disponível
-        if (msg.key.participantAlt) {
-            sender = msg.key.participantAlt;
-        } else {
-            // Tenta usar o signal store para resolver
-            try {
-                const store = sock?.authState?.creds?.me;
-                // Fallback: remove @lid e usa o que temos
-                sender = sender.replace('@lid', '@s.whatsapp.net');
-            } catch (e) {
-                console.log('[Emoji] Não foi possível resolver @lid:', e.message);
-            }
-        }
-    }
-    
-    // Limpa o número
-    return sender.replace('@s.whatsapp.net', '').replace('@lid', '');
 }
 
 /**
