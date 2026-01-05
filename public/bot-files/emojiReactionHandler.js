@@ -231,9 +231,26 @@ async function processEmojiReactions(sock, msg, debug = false) {
 
 /**
  * Lista emojis comprados pelo usuário
+ * @param {string|object} whatsappNumberOrMsg - Número do WhatsApp OU objeto msg do Baileys
+ * @param {object} sock - Socket do Baileys (obrigatório se passar msg)
  */
-async function listUserEmojis(whatsappNumber) {
-    const cleanNumber = normalizeNumber(whatsappNumber);
+async function listUserEmojis(whatsappNumberOrMsg, sock = null) {
+    let cleanNumber;
+    
+    // Se for um objeto (msg do Baileys), extrai o número real
+    if (typeof whatsappNumberOrMsg === 'object' && whatsappNumberOrMsg.key) {
+        cleanNumber = await extractRealNumber(sock, whatsappNumberOrMsg);
+        if (!cleanNumber) {
+            console.log('[listUserEmojis] Não foi possível extrair número da mensagem');
+            return [];
+        }
+        cleanNumber = normalizeNumber(cleanNumber);
+    } else {
+        // String normal
+        cleanNumber = normalizeNumber(whatsappNumberOrMsg);
+    }
+    
+    console.log('[listUserEmojis DEBUG] cleanNumber:', cleanNumber);
     
     const { data: user } = await supabase
         .from('users')
@@ -241,7 +258,10 @@ async function listUserEmojis(whatsappNumber) {
         .eq('whatsapp_number', cleanNumber)
         .maybeSingle();
     
-    if (!user) return [];
+    if (!user) {
+        console.log('[listUserEmojis DEBUG] Usuário não encontrado para:', cleanNumber);
+        return [];
+    }
     
     const { data } = await supabase
         .from('user_items')
