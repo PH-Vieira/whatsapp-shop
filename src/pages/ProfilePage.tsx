@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LevelBadge } from '@/components/ui/LevelBadge';
 import { CoinBadge } from '@/components/ui/CoinBadge';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, LogOut, Package, History, Award, MessageCircle, Calendar, Sparkles, Pencil, Check, X } from 'lucide-react';
