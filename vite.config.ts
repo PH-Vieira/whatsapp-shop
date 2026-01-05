@@ -16,9 +16,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   preview: {
-    host: "0.0.0.0",
-    port: 4171,
-    strictPort: true,
+    // allowedHosts: ['www.monumental.center', 'monumental.center']
     allowedHosts: "all"
   }
 }));
