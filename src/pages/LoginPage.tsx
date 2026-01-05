@@ -16,6 +16,15 @@ export default function LoginPage() {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Normaliza o número para sempre ter o código do país 55
+  const normalizePhone = (number: string) => {
+    let cleaned = number.replace(/\D/g, '');
+    if (!cleaned.startsWith('55')) {
+      cleaned = '55' + cleaned;
+    }
+    return cleaned;
+  };
+
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     if (numbers.length <= 2) return numbers;
@@ -36,7 +45,8 @@ export default function LoginPage() {
     }
 
     setIsLoading(true);
-    const result = await requestCode(numbers);
+    const normalizedNumber = normalizePhone(numbers);
+    const result = await requestCode(normalizedNumber);
     setIsLoading(false);
 
     if (result.success) {
@@ -54,8 +64,8 @@ export default function LoginPage() {
     }
 
     setIsLoading(true);
-    const numbers = phone.replace(/\D/g, '');
-    const result = await login(numbers, code);
+    const normalizedNumber = normalizePhone(phone);
+    const result = await login(normalizedNumber, code);
     setIsLoading(false);
 
     if (result.success) {
