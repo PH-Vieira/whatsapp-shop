@@ -16,12 +16,11 @@ export default function LoginPage() {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Normaliza o número para sempre ter o código do país 55
+  // Normaliza o número para sempre ter o código do país 55 (sem duplicar)
   const normalizePhone = (number: string) => {
-    let cleaned = number.replace(/\D/g, '');
-    if (!cleaned.startsWith('55')) {
-      cleaned = '55' + cleaned;
-    }
+    let cleaned = String(number || '').replace(/\D/g, '');
+    cleaned = cleaned.replace(/^(55)+/, '55');
+    if (!cleaned.startsWith('55')) cleaned = '55' + cleaned;
     return cleaned;
   };
 
