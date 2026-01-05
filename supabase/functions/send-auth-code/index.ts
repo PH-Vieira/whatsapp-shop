@@ -22,7 +22,12 @@ serve(async (req) => {
     }
 
     // URL do bot - em dev usa localhost, em prod usa o IP da VPS
-    const botUrl = Deno.env.get('BOT_WEBHOOK_URL') || 'http://localhost:3001';
+    let botUrl = Deno.env.get('BOT_WEBHOOK_URL') || 'http://localhost:3001';
+    
+    // Garantir que a URL tenha o protocolo http://
+    if (botUrl && !botUrl.startsWith('http://') && !botUrl.startsWith('https://')) {
+      botUrl = `http://${botUrl}`;
+    }
     
     console.log(`[send-auth-code] Enviando código ${code} para ${whatsappNumber}`);
     console.log(`[send-auth-code] Bot URL: ${botUrl}/send-auth-code`);
