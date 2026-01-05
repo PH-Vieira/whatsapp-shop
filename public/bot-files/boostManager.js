@@ -154,25 +154,16 @@ async function listInventoryBoosts(whatsappNumber) {
     
     const { data } = await supabase
         .from('user_items')
-        .select(`
-            product_id,
-            products:product_id (
-                id,
-                name,
-                description,
-                category
-            )
-        `)
+        .select('product_id, product:products(id, name, description, category)')
         .eq('user_id', user.id);
     
-    // Filtra apenas boosts
     return (data || []).filter(item => 
-        item.products && item.products.category === 'boost'
+        item.product && item.product.category === 'boost'
     ).map(item => ({
         productId: item.product_id,
-        name: item.products.name,
-        description: item.products.description,
-        ...parseBoostFromName(item.products.name)
+        name: item.product.name,
+        description: item.product.description,
+        ...parseBoostFromName(item.product.name)
     }));
 }
 
