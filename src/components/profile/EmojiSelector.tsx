@@ -34,15 +34,15 @@ export function EmojiSelector({ userId, onUpdate }: EmojiSelectorProps) {
     // Busca emojis comprados
     const { data: items } = await supabase
       .from('user_items')
-      .select('product_id, products:product_id(id, name, category, image_url)')
+      .select('product_id, product:products(id, name, category, image_url)')
       .eq('user_id', userId);
     
     const emojiItems = (items || [])
-      .filter((item: any) => item.products?.category === 'emoji')
+      .filter((item: any) => item.product?.category === 'emoji')
       .map((item: any) => ({
         productId: item.product_id,
-        name: item.products.name,
-        emoji: extractEmojiFromName(item.products.name)
+        name: item.product.name,
+        emoji: extractEmojiFromName(item.product.name)
       }));
     
     setOwnedEmojis(emojiItems);

@@ -3,8 +3,8 @@
 ## Arquivos a copiar
 
 Copie estes arquivos para a pasta `src/lib/` do seu bot:
-- `emojiReactionHandler.js`
-- `boostManager.js`
+- `public/bot-files/emojiReactionHandler.js` -> `src/lib/emojiReactionHandler.js`
+- `public/bot-files/boostManager.js` -> `src/lib/boostManager.js`
 
 ---
 

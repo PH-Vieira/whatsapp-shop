@@ -196,19 +196,11 @@ async function listUserEmojis(whatsappNumber) {
     
     const { data } = await supabase
         .from('user_items')
-        .select(`
-            product_id,
-            products:product_id (
-                id,
-                name,
-                category
-            )
-        `)
+        .select('product_id, product:products(id, name, category)')
         .eq('user_id', user.id);
     
-    // Filtra apenas emojis
     const emojiItems = (data || []).filter(item => 
-        item.products && item.products.category === 'emoji'
+        item.product && item.product.category === 'emoji'
     );
     
     // Busca status de ativação
@@ -221,8 +213,8 @@ async function listUserEmojis(whatsappNumber) {
     
     return emojiItems.map(item => ({
         productId: item.product_id,
-        name: item.products.name,
-        emoji: extractEmojiFromName(item.products.name),
+        name: item.product.name,
+        emoji: extractEmojiFromName(item.product.name),
         isActive: activeMap.get(item.product_id)?.is_active || false
     }));
 }
