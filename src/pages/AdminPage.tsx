@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Users, ShoppingBag, Gift, Trash2, Edit, Coins, Ban } from 'lucide-react';
+import { Loader2, Plus, Users, ShoppingBag, Gift, Trash2, Edit, Coins, Ban, Trophy, Dices } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User, Product, Raffle } from '@/lib/types';
 import { Navigate } from 'react-router-dom';
@@ -216,6 +216,52 @@ export default function AdminPage() {
       return;
     }
     toast.success('Produto deletado');
+    loadData();
+  };
+
+  const handleDrawWinner = async (raffle: Raffle) => {
+    // Fetch all entries for this raffle
+    const { data: entries, error: entriesError } = await supabase
+      .from('raffle_entries')
+      .select('user_id, entries_count')
+      .eq('raffle_id', raffle.id);
+
+    if (entriesError || !entries || entries.length === 0) {
+      toast.error('Nenhum participante neste sorteio!');
+      return;
+    }
+
+    // Create weighted pool based on entries_count
+    const weightedPool: string[] = [];
+    for (const entry of entries) {
+      for (let i = 0; i < entry.entries_count; i++) {
+        weightedPool.push(entry.user_id);
+      }
+    }
+
+    // Pick random winner
+    const winnerIndex = Math.floor(Math.random() * weightedPool.length);
+    const winnerId = weightedPool[winnerIndex];
+
+    // Update raffle with winner
+    const { error: updateError } = await supabase
+      .from('raffles')
+      .update({ winner_id: winnerId, status: 'ended' })
+      .eq('id', raffle.id);
+
+    if (updateError) {
+      toast.error('Erro ao registrar vencedor');
+      return;
+    }
+
+    // Get winner name
+    const { data: winner } = await supabase
+      .from('users')
+      .select('name')
+      .eq('id', winnerId)
+      .single();
+
+    toast.success(`🎉 Vencedor: ${winner?.name || 'Usuário'}`);
     loadData();
   };
 
@@ -487,15 +533,44 @@ export default function AdminPage() {
                 </DialogContent>
               </Dialog>
 
-              {raffles.map(r => (
-                <Card key={r.id}>
-                  <CardContent className="p-4">
-                    <p className="font-bold">{r.title}</p>
-                    <p className="text-sm text-muted-foreground">{r.prize_description}</p>
-                    <p className="text-xs">{r.status} | {r.entry_cost} coins</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {raffles.map(r => {
+                const isEnded = r.status === 'ended' || new Date(r.ends_at) <= new Date();
+                const canDraw = isEnded && !r.winner_id;
+                
+                return (
+                  <Card key={r.id} className={cn(r.winner_id && 'border-golden/50 bg-golden/5')}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="font-bold">{r.title}</p>
+                          <p className="text-sm text-muted-foreground">{r.prize_description}</p>
+                          <p className="text-xs mt-1">
+                            {r.status === 'ended' ? '🔒 Encerrado' : '🎯 Ativo'} | {r.entry_cost} coins
+                          </p>
+                          {r.winner_id && (
+                            <p className="text-sm text-golden font-medium mt-2 flex items-center gap-1">
+                              <Trophy className="w-4 h-4" />
+                              Vencedor definido
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {canDraw && (
+                            <Button 
+                              size="sm" 
+                              className="gradient-primary"
+                              onClick={() => handleDrawWinner(r)}
+                            >
+                              <Dices className="w-4 h-4 mr-1" />
+                              Sortear
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </TabsContent>
           </Tabs>
         )}
