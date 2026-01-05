@@ -56,6 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(updatedSession);
         localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
       }
+    } else {
+      // Usuário não existe mais no banco - faz logout automático
+      console.log('[Auth] Usuário não encontrado no banco, fazendo logout');
+      setUser(null);
+      setSession(null);
+      localStorage.removeItem(SESSION_KEY);
     }
   };
 
