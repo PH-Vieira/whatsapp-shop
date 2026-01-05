@@ -21,15 +21,21 @@ serve(async (req) => {
       );
     }
 
+    // Normaliza número para evitar 55 duplicado e envia ao bot SEM o prefixo 55
+    // (o bot adiciona 55 ao construir o JID)
+    let cleaned = String(whatsappNumber || '').replace(/\D/g, '');
+    cleaned = cleaned.replace(/^(55)+/, '55');
+    const numberForBot = cleaned.startsWith('55') ? cleaned.slice(2) : cleaned;
+
     // URL do bot - em dev usa localhost, em prod usa o IP da VPS
     let botUrl = Deno.env.get('BOT_WEBHOOK_URL') || 'http://localhost:3001';
-    
+
     // Garantir que a URL tenha o protocolo http://
     if (botUrl && !botUrl.startsWith('http://') && !botUrl.startsWith('https://')) {
       botUrl = `http://${botUrl}`;
     }
-    
-    console.log(`[send-auth-code] Enviando código ${code} para ${whatsappNumber}`);
+
+    console.log(`[send-auth-code] Enviando código ${code} para ${cleaned} (bot recebe: ${numberForBot})`);
     console.log(`[send-auth-code] Bot URL: ${botUrl}/send-auth-code`);
 
     const response = await fetch(`${botUrl}/send-auth-code`, {
@@ -38,7 +44,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        whatsappNumber,
+        whatsappNumber: numberForBot,
         code,
       }),
     });
