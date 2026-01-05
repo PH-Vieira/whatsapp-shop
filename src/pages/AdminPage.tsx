@@ -129,7 +129,14 @@ export default function AdminPage() {
       return;
     }
 
-    const { error } = await supabase.from('raffles').insert(newRaffle);
+    // Convert local datetime to ISO string with timezone
+    const endsAtDate = new Date(newRaffle.ends_at);
+    const endsAtISO = endsAtDate.toISOString();
+
+    const { error } = await supabase.from('raffles').insert({
+      ...newRaffle,
+      ends_at: endsAtISO,
+    });
 
     if (error) {
       toast.error('Erro ao criar sorteio');
