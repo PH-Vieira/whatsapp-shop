@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, LogOut, Package, History, Award, MessageCircle, Calendar, Sparkles, Pencil, Check, X } from 'lucide-react';
+import { AvatarUpload } from '@/components/ui/AvatarUpload';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { UserItem, Transaction, UserBadge, Product } from '@/lib/types';
@@ -87,20 +88,12 @@ export default function ProfilePage() {
           <div className="h-24 gradient-candy" />
           <CardContent className="relative pt-0 px-4 pb-4">
             <div className="flex flex-col items-center -mt-12">
-              <div className={cn(
-                'w-24 h-24 rounded-2xl flex items-center justify-center text-4xl',
-                'bg-card border-4 border-card shadow-soft'
-              )}>
-                {user.avatar_url ? (
-                  <img 
-                    src={user.avatar_url} 
-                    alt={user.name}
-                    className="w-full h-full rounded-2xl object-cover"
-                  />
-                ) : (
-                  '👤'
-                )}
-              </div>
+              <AvatarUpload
+                userId={user.id}
+                currentAvatarUrl={user.avatar_url}
+                userName={user.name}
+                onUploadComplete={refreshUser}
+              />
 
               {isEditingName ? (
                 <div className="flex items-center gap-2 mt-3">
