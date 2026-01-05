@@ -30,8 +30,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (new Date(parsed.expiresAt) > new Date()) {
           setSession(parsed);
           setUser(parsed.user);
-          // Refresh user data
-          refreshUserData(parsed.user.id);
+          // Refresh user data (and persist updated session)
+          refreshUserData(parsed.user.id, parsed);
         } else {
           localStorage.removeItem(SESSION_KEY);
         }
@@ -42,17 +42,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const refreshUserData = async (userId: string) => {
+  const refreshUserData = async (userId: string, currentSession: AuthSession | null = null) => {
     const { data } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
-    
+
     if (data) {
       setUser(data as User);
-      if (session) {
-        const updatedSession = { ...session, user: data as User };
+
+      const baseSession = currentSession ?? session;
+      if (baseSession) {
+        const updatedSession = { ...baseSession, user: data as User };
         setSession(updatedSession);
         localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
       }
