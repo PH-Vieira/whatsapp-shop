@@ -61,6 +61,7 @@ export default function AdminPage() {
     max_entries_per_user: number | null;
     unlimited_entries: boolean;
     ends_at: string;
+    notification_group: string;
   }>({
     title: '',
     description: '',
@@ -71,6 +72,7 @@ export default function AdminPage() {
     max_entries_per_user: 1,
     unlimited_entries: false,
     ends_at: '',
+    notification_group: '',
   });
 
   useEffect(() => {
@@ -135,12 +137,13 @@ export default function AdminPage() {
     const endsAtDate = new Date(newRaffle.ends_at);
     const endsAtISO = endsAtDate.toISOString();
 
-    const { unlimited_entries, ...raffleData } = newRaffle;
+    const { unlimited_entries, notification_group, ...raffleData } = newRaffle;
     
     const { error } = await supabase.from('raffles').insert({
       ...raffleData,
       ends_at: endsAtISO,
       max_entries_per_user: unlimited_entries ? null : raffleData.max_entries_per_user,
+      notification_group: notification_group || null,
     });
 
     if (error) {
@@ -160,6 +163,7 @@ export default function AdminPage() {
       max_entries_per_user: 1,
       unlimited_entries: false,
       ends_at: '',
+      notification_group: '',
     });
     loadData();
   };
@@ -261,7 +265,31 @@ export default function AdminPage() {
       .eq('id', winnerId)
       .single();
 
-    toast.success(`🎉 Vencedor: ${winner?.name || 'Usuário'}`);
+    const winnerName = winner?.name || 'Usuário';
+    toast.success(`🎉 Vencedor: ${winnerName}`);
+
+    // Send notification to group if configured
+    if (raffle.notification_group) {
+      try {
+        const { error: notifyError } = await supabase.functions.invoke('send-raffle-result', {
+          body: {
+            groupNumber: raffle.notification_group,
+            raffleTitle: raffle.title,
+            winnerName: winnerName,
+          },
+        });
+
+        if (notifyError) {
+          console.error('Notification error:', notifyError);
+          toast.error('Erro ao enviar notificação para o grupo');
+        } else {
+          toast.success('Resultado enviado para o grupo!');
+        }
+      } catch (err) {
+        console.error('Failed to notify group:', err);
+      }
+    }
+
     loadData();
   };
 
@@ -525,6 +553,17 @@ export default function AdminPage() {
                         value={newRaffle.ends_at}
                         onChange={e => setNewRaffle({...newRaffle, ends_at: e.target.value})}
                       />
+                    </div>
+                    <div>
+                      <Label>Grupo para Notificação (opcional)</Label>
+                      <Input 
+                        placeholder="ID do grupo WhatsApp (ex: 120363...)"
+                        value={newRaffle.notification_group}
+                        onChange={e => setNewRaffle({...newRaffle, notification_group: e.target.value})}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        O bot enviará o resultado neste grupo
+                      </p>
                     </div>
                     <Button className="w-full" onClick={handleCreateRaffle}>
                       Criar Sorteio
