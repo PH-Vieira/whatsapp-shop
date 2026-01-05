@@ -2,21 +2,26 @@ import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { LevelBadge } from '@/components/ui/LevelBadge';
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, LogOut, Package, History, Award, MessageCircle, Calendar, Sparkles } from 'lucide-react';
+import { Loader2, LogOut, Package, History, Award, MessageCircle, Calendar, Sparkles, Pencil, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import type { UserItem, Transaction, UserBadge, Product } from '@/lib/types';
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [items, setItems] = useState<(UserItem & { product: Product })[]>([]);
   const [badges, setBadges] = useState<UserBadge[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
 
   useEffect(() => {
     if (user) loadProfileData();
@@ -50,6 +55,25 @@ export default function ProfilePage() {
     setIsLoading(false);
   };
 
+  const handleSaveName = async () => {
+    if (!user || !editName.trim()) return;
+    
+    setIsSavingName(true);
+    const { error } = await supabase
+      .from('users')
+      .update({ name: editName.trim() })
+      .eq('id', user.id);
+    
+    if (error) {
+      toast.error('Erro ao salvar nome');
+    } else {
+      await refreshUser();
+      toast.success('Nome atualizado!');
+      setIsEditingName(false);
+    }
+    setIsSavingName(false);
+  };
+
   if (!user) return null;
 
   const xpForNextLevel = user.level * 100;
@@ -78,7 +102,50 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <h1 className="text-xl font-display font-bold mt-3">{user.name}</h1>
+              {isEditingName ? (
+                <div className="flex items-center gap-2 mt-3">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="h-8 text-center font-bold"
+                    maxLength={30}
+                    autoFocus
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={handleSaveName}
+                    disabled={isSavingName}
+                  >
+                    {isSavingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 text-success" />}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => setIsEditingName(false)}
+                    disabled={isSavingName}
+                  >
+                    <X className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mt-3">
+                  <h1 className="text-xl font-display font-bold">{user.name}</h1>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      setEditName(user.name);
+                      setIsEditingName(true);
+                    }}
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
               
               {user.equipped_title && (
                 <p className="text-sm text-primary font-medium">{user.equipped_title}</p>
