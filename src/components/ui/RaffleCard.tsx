@@ -108,14 +108,21 @@ export function RaffleCard({ raffle, participantCount = 0, userEntries = 0, onPa
         )}
         
         {!isEnded && (
-          <Button 
-            onClick={onParticipate}
-            disabled={disabled}
-            className="gap-1 gradient-accent text-accent-foreground border-0"
-          >
-            <Ticket className="w-4 h-4" />
-            {userEntries > 0 ? `${userEntries}x Participando` : 'Participar'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {raffle.max_entries_per_user === null && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                ∞ ilimitado
+              </span>
+            )}
+            <Button 
+              onClick={onParticipate}
+              disabled={disabled}
+              className="gap-1 gradient-accent text-accent-foreground border-0"
+            >
+              <Ticket className="w-4 h-4" />
+              {userEntries > 0 ? `${userEntries}x Participando` : 'Participar'}
+            </Button>
+          </div>
         )}
       </CardFooter>
     </Card>

@@ -58,7 +58,8 @@ export default function AdminPage() {
     prize_type: 'virtual' | 'real' | 'mixed';
     prize_image_url: string;
     entry_cost: number;
-    max_entries_per_user: number;
+    max_entries_per_user: number | null;
+    unlimited_entries: boolean;
     ends_at: string;
   }>({
     title: '',
@@ -68,6 +69,7 @@ export default function AdminPage() {
     prize_image_url: '',
     entry_cost: 0,
     max_entries_per_user: 1,
+    unlimited_entries: false,
     ends_at: '',
   });
 
@@ -133,9 +135,12 @@ export default function AdminPage() {
     const endsAtDate = new Date(newRaffle.ends_at);
     const endsAtISO = endsAtDate.toISOString();
 
+    const { unlimited_entries, ...raffleData } = newRaffle;
+    
     const { error } = await supabase.from('raffles').insert({
-      ...newRaffle,
+      ...raffleData,
       ends_at: endsAtISO,
+      max_entries_per_user: unlimited_entries ? null : raffleData.max_entries_per_user,
     });
 
     if (error) {
@@ -153,6 +158,7 @@ export default function AdminPage() {
       prize_image_url: '',
       entry_cost: 0,
       max_entries_per_user: 1,
+      unlimited_entries: false,
       ends_at: '',
     });
     loadData();
@@ -443,6 +449,29 @@ export default function AdminPage() {
                         />
                       </div>
                     </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                      <div>
+                        <Label className="text-sm font-medium">Participação Ilimitada</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Quem tem mais moedas pode participar mais vezes
+                        </p>
+                      </div>
+                      <Switch
+                        checked={newRaffle.unlimited_entries}
+                        onCheckedChange={checked => setNewRaffle({...newRaffle, unlimited_entries: checked})}
+                      />
+                    </div>
+                    {!newRaffle.unlimited_entries && (
+                      <div>
+                        <Label>Máximo de Participações por Usuário</Label>
+                        <Input 
+                          type="number"
+                          min={1}
+                          value={newRaffle.max_entries_per_user ?? 1}
+                          onChange={e => setNewRaffle({...newRaffle, max_entries_per_user: parseInt(e.target.value) || 1})}
+                        />
+                      </div>
+                    )}
                     <div>
                       <Label>Encerra em *</Label>
                       <Input 
