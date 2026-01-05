@@ -294,3 +294,41 @@ Adicione estas linhas ao menu:
 | `index.js` | Adicionar imports e `processEmojiReactions` no handler |
 | `levelCommand.js` | Adicionar comandos !emojis, !boost, etc |
 | `menuCommand.js` | Adicionar novos comandos ao menu |
+
+---
+
+## 6. Endpoint para enviar mensagens (notificações de sorteio)
+
+Adicione este endpoint no seu servidor Express (no `index.js`):
+
+```javascript
+// Endpoint para enviar mensagem (usado para notificações de sorteio)
+app.post('/send-message', async (req, res) => {
+    const { to, message } = req.body;
+    
+    if (!to || !message) {
+        return res.status(400).json({ error: 'Parâmetros to e message são obrigatórios' });
+    }
+    
+    const sock = global.sock;
+    if (!sock) {
+        return res.status(503).json({ error: 'Bot não conectado' });
+    }
+    
+    try {
+        await sock.sendMessage(to, { text: message });
+        console.log('[API] Mensagem enviada para:', to);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[API] Erro ao enviar mensagem:', error);
+        res.status(500).json({ error: 'Falha ao enviar mensagem', details: error.message });
+    }
+});
+```
+
+### Como obter o ID do grupo:
+
+1. Adicione o bot ao grupo
+2. Envie uma mensagem no grupo
+3. Nos logs do bot, procure por `remoteJid` - será algo como `120363XXXXXXXXXX@g.us`
+4. Use esse ID no campo "Grupo para Notificação" ao criar o sorteio

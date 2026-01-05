@@ -133,6 +133,7 @@ export type Database = {
           entry_cost: number
           id: string
           max_entries_per_user: number | null
+          notification_group: string | null
           prize_description: string
           prize_image_url: string | null
           prize_type: Database["public"]["Enums"]["prize_type"]
@@ -147,6 +148,7 @@ export type Database = {
           entry_cost?: number
           id?: string
           max_entries_per_user?: number | null
+          notification_group?: string | null
           prize_description: string
           prize_image_url?: string | null
           prize_type?: Database["public"]["Enums"]["prize_type"]
@@ -161,6 +163,7 @@ export type Database = {
           entry_cost?: number
           id?: string
           max_entries_per_user?: number | null
+          notification_group?: string | null
           prize_description?: string
           prize_image_url?: string | null
           prize_type?: Database["public"]["Enums"]["prize_type"]

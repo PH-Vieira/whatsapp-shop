@@ -62,6 +62,7 @@ export interface Raffle {
   status: 'active' | 'ended' | 'cancelled';
   ends_at: string;
   winner_id: string | null;
+  notification_group: string | null;
   created_at: string;
   winner?: User;
 }
