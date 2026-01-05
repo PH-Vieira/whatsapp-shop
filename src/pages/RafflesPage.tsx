@@ -58,7 +58,8 @@ export default function RafflesPage() {
     }
 
     const currentEntries = userEntries[raffle.id] || 0;
-    if (raffle.max_entries_per_user && currentEntries >= raffle.max_entries_per_user) {
+    // null = unlimited entries, otherwise check limit
+    if (raffle.max_entries_per_user !== null && currentEntries >= raffle.max_entries_per_user) {
       toast.error('Você já atingiu o limite de participações!');
       return;
     }
