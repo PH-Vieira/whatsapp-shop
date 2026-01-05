@@ -16,6 +16,14 @@ export default defineConfig(({ mode }) => ({
     },
   },
   preview: {
-    allowedHosts: ['www.bot-shop.monumental.center', 'bot-shop.monumental.center', 'www.monumental.center', 'monumental.center']
+    host: "0.0.0.0",
+    port: 4171,
+    strictPort: true,
+    allowedHosts: [
+      "bot-shop.monumental.center",
+      "www.bot-shop.monumental.center",
+      "monumental.center",
+      "www.monumental.center"
+    ]
   }
 }));
