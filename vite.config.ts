@@ -16,6 +16,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   preview: {
-    allowedHosts: ['www.monumental.center', 'monumental.center']
+    allowedHosts: ['bot-shop.monumental.center', 'www.monumental.center', 'monumental.center']
   }
 }));
