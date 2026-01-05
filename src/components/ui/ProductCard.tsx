@@ -18,6 +18,8 @@ const categoryEmojis: Record<string, string> = {
   frame: '🖼️',
   title: '📛',
   special: '✨',
+  emoji: '💬',
+  boost: '⚡',
 };
 
 const rarityColors: Record<string, string> = {

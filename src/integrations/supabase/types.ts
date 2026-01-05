@@ -216,6 +216,93 @@ export type Database = {
           },
         ]
       }
+      user_active_boosts: {
+        Row: {
+          boost_type: string
+          created_at: string
+          expires_at: string
+          id: string
+          multiplier: number
+          product_id: string
+          user_id: string
+        }
+        Insert: {
+          boost_type: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          multiplier?: number
+          product_id: string
+          user_id: string
+        }
+        Update: {
+          boost_type?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          multiplier?: number
+          product_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_active_boosts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_active_boosts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_active_emojis: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          is_active: boolean | null
+          product_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          is_active?: boolean | null
+          product_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          is_active?: boolean | null
+          product_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_active_emojis_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_active_emojis_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_badges: {
         Row: {
           badge_icon: string
@@ -388,7 +475,14 @@ export type Database = {
     }
     Enums: {
       prize_type: "virtual" | "real" | "mixed"
-      product_category: "avatar" | "badge" | "frame" | "title" | "special"
+      product_category:
+        | "avatar"
+        | "badge"
+        | "frame"
+        | "title"
+        | "special"
+        | "emoji"
+        | "boost"
       raffle_status: "active" | "ended" | "cancelled"
     }
     CompositeTypes: {
@@ -518,7 +612,15 @@ export const Constants = {
   public: {
     Enums: {
       prize_type: ["virtual", "real", "mixed"],
-      product_category: ["avatar", "badge", "frame", "title", "special"],
+      product_category: [
+        "avatar",
+        "badge",
+        "frame",
+        "title",
+        "special",
+        "emoji",
+        "boost",
+      ],
       raffle_status: ["active", "ended", "cancelled"],
     },
   },

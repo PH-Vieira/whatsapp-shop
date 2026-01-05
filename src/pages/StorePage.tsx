@@ -14,6 +14,8 @@ const categories = [
   { value: 'badge', label: 'Badges', emoji: '🏅' },
   { value: 'frame', label: 'Molduras', emoji: '🖼️' },
   { value: 'title', label: 'Títulos', emoji: '📛' },
+  { value: 'emoji', label: 'Reações', emoji: '💬' },
+  { value: 'boost', label: 'Boosts', emoji: '⚡' },
   { value: 'special', label: 'Especiais', emoji: '🌟' },
 ];
 
