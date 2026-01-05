@@ -75,8 +75,91 @@ export default function AdminPage() {
     notification_group: '',
   });
 
+  // Check and auto-draw expired raffles
+  const checkAndAutoDrawRaffles = async () => {
+    const { data: expiredRaffles } = await supabase
+      .from('raffles')
+      .select('*')
+      .eq('status', 'active')
+      .is('winner_id', null)
+      .lte('ends_at', new Date().toISOString());
+
+    if (expiredRaffles && expiredRaffles.length > 0) {
+      for (const raffle of expiredRaffles) {
+        await handleDrawWinnerAuto(raffle as Raffle);
+      }
+      loadData();
+    }
+  };
+
+  // Auto-draw function (separate from manual to avoid duplicate toasts on load)
+  const handleDrawWinnerAuto = async (raffle: Raffle) => {
+    const { data: entries, error: entriesError } = await supabase
+      .from('raffle_entries')
+      .select('user_id, entries_count')
+      .eq('raffle_id', raffle.id);
+
+    if (entriesError || !entries || entries.length === 0) {
+      // No participants, just end the raffle
+      await supabase
+        .from('raffles')
+        .update({ status: 'ended' })
+        .eq('id', raffle.id);
+      return;
+    }
+
+    // Create weighted pool
+    const weightedPool: string[] = [];
+    for (const entry of entries) {
+      for (let i = 0; i < entry.entries_count; i++) {
+        weightedPool.push(entry.user_id);
+      }
+    }
+
+    const winnerIndex = Math.floor(Math.random() * weightedPool.length);
+    const winnerId = weightedPool[winnerIndex];
+
+    await supabase
+      .from('raffles')
+      .update({ winner_id: winnerId, status: 'ended' })
+      .eq('id', raffle.id);
+
+    // Get winner info and notify
+    const { data: winner } = await supabase
+      .from('users')
+      .select('name')
+      .eq('id', winnerId)
+      .single();
+
+    const winnerName = winner?.name || 'Usuário';
+
+    if (raffle.notification_group) {
+      try {
+        await supabase.functions.invoke('send-raffle-result', {
+          body: {
+            groupNumber: raffle.notification_group,
+            raffleTitle: raffle.title,
+            winnerName: winnerName,
+          },
+        });
+      } catch (err) {
+        console.error('Failed to notify group:', err);
+      }
+    }
+  };
+
   useEffect(() => {
-    if (user?.is_admin) loadData();
+    if (user?.is_admin) {
+      loadData();
+      checkAndAutoDrawRaffles();
+
+      // Check every 30 seconds for expired raffles
+      const interval = setInterval(() => {
+        checkAndAutoDrawRaffles();
+      }, 30000);
+
+      return () => clearInterval(interval);
+    }
   }, [user]);
 
   if (!user?.is_admin) {
@@ -87,7 +170,7 @@ export default function AdminPage() {
     const [usersRes, productsRes, rafflesRes] = await Promise.all([
       supabase.from('users').select('*').order('created_at', { ascending: false }),
       supabase.from('products').select('*').order('created_at', { ascending: false }),
-      supabase.from('raffles').select('*').order('created_at', { ascending: false }),
+      supabase.from('raffles').select('*, winner:users!raffles_winner_id_fkey(id, name, whatsapp_number)').order('created_at', { ascending: false }),
     ]);
 
     setUsers((usersRes.data || []) as User[]);
@@ -575,22 +658,40 @@ export default function AdminPage() {
               {raffles.map(r => {
                 const isEnded = r.status === 'ended' || new Date(r.ends_at) <= new Date();
                 const canDraw = isEnded && !r.winner_id;
+                const endsAtDate = new Date(r.ends_at);
+                const timeLeft = endsAtDate.getTime() - Date.now();
+                const isExpiringSoon = timeLeft > 0 && timeLeft < 3600000; // Less than 1 hour
                 
                 return (
-                  <Card key={r.id} className={cn(r.winner_id && 'border-golden/50 bg-golden/5')}>
+                  <Card key={r.id} className={cn(
+                    r.winner_id && 'border-golden/50 bg-golden/5',
+                    isExpiringSoon && !r.winner_id && 'border-orange-500/50'
+                  )}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <p className="font-bold">{r.title}</p>
                           <p className="text-sm text-muted-foreground">{r.prize_description}</p>
-                          <p className="text-xs mt-1">
-                            {r.status === 'ended' ? '🔒 Encerrado' : '🎯 Ativo'} | {r.entry_cost} coins
-                          </p>
-                          {r.winner_id && (
-                            <p className="text-sm text-golden font-medium mt-2 flex items-center gap-1">
-                              <Trophy className="w-4 h-4" />
-                              Vencedor definido
+                          <div className="text-xs mt-1 space-y-0.5">
+                            <p>
+                              {r.status === 'ended' ? '🔒 Encerrado' : isExpiringSoon ? '⏰ Encerrando em breve' : '🎯 Ativo'} | {r.entry_cost} coins
                             </p>
+                            <p className="text-muted-foreground">
+                              {r.status === 'ended' ? 'Encerrou' : 'Encerra'}: {endsAtDate.toLocaleString('pt-BR')}
+                            </p>
+                            {r.max_entries_per_user === null && (
+                              <p className="text-primary">♾️ Participação ilimitada</p>
+                            )}
+                          </div>
+                          {r.winner_id && r.winner && (
+                            <div className="mt-3 p-2 rounded-lg bg-golden/10 border border-golden/30">
+                              <p className="text-sm text-golden font-medium flex items-center gap-1">
+                                <Trophy className="w-4 h-4" />
+                                Vencedor
+                              </p>
+                              <p className="font-bold text-foreground">{r.winner.name}</p>
+                              <p className="text-xs text-muted-foreground">{r.winner.whatsapp_number}</p>
+                            </div>
                           )}
                         </div>
                         <div className="flex flex-col gap-2">
