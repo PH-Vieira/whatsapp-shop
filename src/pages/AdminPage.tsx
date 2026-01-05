@@ -33,7 +33,7 @@ export default function AdminPage() {
   const [newProduct, setNewProduct] = useState<{
     name: string;
     description: string;
-    category: 'avatar' | 'badge' | 'frame' | 'title' | 'special';
+    category: 'avatar' | 'badge' | 'frame' | 'title' | 'special' | 'emoji' | 'boost';
     price: number;
     image_url: string;
     rarity: string;
@@ -307,6 +307,8 @@ export default function AdminPage() {
                             <SelectItem value="badge">Badge</SelectItem>
                             <SelectItem value="frame">Moldura</SelectItem>
                             <SelectItem value="title">Título</SelectItem>
+                            <SelectItem value="emoji">Reação</SelectItem>
+                            <SelectItem value="boost">Boost</SelectItem>
                             <SelectItem value="special">Especial</SelectItem>
                           </SelectContent>
                         </Select>

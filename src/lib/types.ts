@@ -23,7 +23,7 @@ export interface Product {
   id: string;
   name: string;
   description: string | null;
-  category: 'avatar' | 'badge' | 'frame' | 'title' | 'special';
+  category: 'avatar' | 'badge' | 'frame' | 'title' | 'special' | 'emoji' | 'boost';
   price: number;
   image_url: string | null;
   rarity: string;

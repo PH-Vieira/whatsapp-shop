@@ -1,0 +1,247 @@
+/**
+ * Handler de Reações de Emoji
+ * Coloque este arquivo em: src/lib/emojiReactionHandler.js
+ * 
+ * Este módulo gerencia as reações automáticas do bot às mensagens
+ * de usuários que compraram emojis na loja.
+ */
+
+const { supabase } = require('./supabase');
+
+/**
+ * Normaliza o número do WhatsApp
+ */
+function normalizeNumber(input) {
+    let cleaned = String(input || '').replace(/\D/g, '');
+    cleaned = cleaned.replace(/^(55)+/, '55');
+    if (!cleaned.startsWith('55')) cleaned = '55' + cleaned;
+    return cleaned;
+}
+
+/**
+ * Busca os emojis ativos de um usuário
+ * @param {string} whatsappNumber - Número do WhatsApp
+ * @returns {Promise<string[]>} - Array de emojis ativos
+ */
+async function getUserActiveEmojis(whatsappNumber) {
+    const cleanNumber = normalizeNumber(whatsappNumber);
+    
+    // Primeiro, busca o usuário
+    const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('whatsapp_number', cleanNumber)
+        .maybeSingle();
+    
+    if (userError || !user) {
+        console.log('[Emoji] Usuário não encontrado:', cleanNumber);
+        return [];
+    }
+    
+    // Busca emojis ativos
+    const { data: activeEmojis, error } = await supabase
+        .from('user_active_emojis')
+        .select('emoji')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+    
+    if (error) {
+        console.error('[Emoji] Erro ao buscar emojis ativos:', error);
+        return [];
+    }
+    
+    return (activeEmojis || []).map(e => e.emoji);
+}
+
+/**
+ * Ativa um emoji comprado pelo usuário
+ * @param {string} whatsappNumber - Número do WhatsApp
+ * @param {string} productId - ID do produto (emoji)
+ * @param {string} emoji - O emoji a ser ativado (ex: '❤️')
+ */
+async function activateEmoji(whatsappNumber, productId, emoji) {
+    const cleanNumber = normalizeNumber(whatsappNumber);
+    
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('whatsapp_number', cleanNumber)
+        .maybeSingle();
+    
+    if (!user) return { error: 'Usuário não encontrado' };
+    
+    // Verifica se o usuário possui o item
+    const { data: userItem } = await supabase
+        .from('user_items')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('product_id', productId)
+        .maybeSingle();
+    
+    if (!userItem) return { error: 'Você não possui este item' };
+    
+    // Ativa o emoji (upsert)
+    const { error } = await supabase
+        .from('user_active_emojis')
+        .upsert({
+            user_id: user.id,
+            product_id: productId,
+            emoji: emoji,
+            is_active: true
+        }, {
+            onConflict: 'user_id,product_id'
+        });
+    
+    if (error) {
+        console.error('[Emoji] Erro ao ativar emoji:', error);
+        return { error: 'Erro ao ativar emoji' };
+    }
+    
+    console.log(`[Emoji] ${emoji} ativado para ${cleanNumber}`);
+    return { success: true };
+}
+
+/**
+ * Desativa um emoji
+ */
+async function deactivateEmoji(whatsappNumber, productId) {
+    const cleanNumber = normalizeNumber(whatsappNumber);
+    
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('whatsapp_number', cleanNumber)
+        .maybeSingle();
+    
+    if (!user) return { error: 'Usuário não encontrado' };
+    
+    const { error } = await supabase
+        .from('user_active_emojis')
+        .update({ is_active: false })
+        .eq('user_id', user.id)
+        .eq('product_id', productId);
+    
+    if (error) {
+        console.error('[Emoji] Erro ao desativar emoji:', error);
+        return { error: 'Erro ao desativar emoji' };
+    }
+    
+    return { success: true };
+}
+
+/**
+ * Reage a uma mensagem com os emojis ativos do usuário
+ * @param {object} sock - Instância do Baileys socket
+ * @param {object} msg - Mensagem recebida
+ * @param {string[]} emojis - Array de emojis para reagir
+ */
+async function reactToMessage(sock, msg, emojis) {
+    if (!emojis || emojis.length === 0) return;
+    
+    const chatId = msg.key.remoteJid;
+    
+    for (const emoji of emojis) {
+        try {
+            await sock.sendMessage(chatId, {
+                react: {
+                    text: emoji,
+                    key: msg.key
+                }
+            });
+            console.log(`[Emoji] Reagido com ${emoji}`);
+            
+            // Pequeno delay entre reações para evitar rate limit
+            await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error) {
+            console.error('[Emoji] Erro ao reagir:', error);
+        }
+    }
+}
+
+/**
+ * Processa mensagem e reage automaticamente se usuário tem emojis ativos
+ * Chame esta função no seu handler de mensagens principal
+ * 
+ * @param {object} sock - Instância do Baileys socket
+ * @param {object} msg - Mensagem recebida
+ */
+async function processEmojiReactions(sock, msg) {
+    try {
+        const sender = msg.key.participant || msg.key.remoteJid;
+        const cleanNumber = sender.replace('@s.whatsapp.net', '').replace('@lid', '');
+        
+        const emojis = await getUserActiveEmojis(cleanNumber);
+        
+        if (emojis.length > 0) {
+            await reactToMessage(sock, msg, emojis);
+        }
+    } catch (error) {
+        console.error('[Emoji] Erro ao processar reações:', error);
+    }
+}
+
+/**
+ * Lista emojis comprados pelo usuário
+ */
+async function listUserEmojis(whatsappNumber) {
+    const cleanNumber = normalizeNumber(whatsappNumber);
+    
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('whatsapp_number', cleanNumber)
+        .maybeSingle();
+    
+    if (!user) return [];
+    
+    const { data } = await supabase
+        .from('user_items')
+        .select(`
+            product_id,
+            products:product_id (
+                id,
+                name,
+                category
+            )
+        `)
+        .eq('user_id', user.id);
+    
+    // Filtra apenas emojis
+    const emojiItems = (data || []).filter(item => 
+        item.products && item.products.category === 'emoji'
+    );
+    
+    // Busca status de ativação
+    const { data: activeEmojis } = await supabase
+        .from('user_active_emojis')
+        .select('product_id, emoji, is_active')
+        .eq('user_id', user.id);
+    
+    const activeMap = new Map((activeEmojis || []).map(e => [e.product_id, e]));
+    
+    return emojiItems.map(item => ({
+        productId: item.product_id,
+        name: item.products.name,
+        emoji: extractEmojiFromName(item.products.name),
+        isActive: activeMap.get(item.product_id)?.is_active || false
+    }));
+}
+
+/**
+ * Extrai o emoji do nome do produto (ex: "Reação ❤️" -> "❤️")
+ */
+function extractEmojiFromName(name) {
+    const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2300}-\u{23FF}]|[\u{2B50}]|[\u{1F004}]|[\u{1F0CF}]|[\u{1F18E}]|[\u{3030}]|[\u{2B55}]|[\u{1F201}]|[\u{1F21A}]|[\u{1F22F}]|[\u{1F232}-\u{1F236}]|[\u{1F238}-\u{1F23A}]|[\u{1F250}-\u{1F251}]/gu;
+    const matches = name.match(emojiRegex);
+    return matches ? matches[0] : '❓';
+}
+
+module.exports = {
+    getUserActiveEmojis,
+    activateEmoji,
+    deactivateEmoji,
+    reactToMessage,
+    processEmojiReactions,
+    listUserEmojis,
+    extractEmojiFromName
+};
