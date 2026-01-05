@@ -20,7 +20,7 @@ export default function RankingPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<'level' | 'coins'>('level');
+  const [sortBy, setSortBy] = useState<'level' | 'coins' | 'xp'>('level');
 
   useEffect(() => {
     loadRanking();
@@ -29,12 +29,15 @@ export default function RankingPage() {
   const loadRanking = async () => {
     setIsLoading(true);
     
+    const orderColumn = sortBy === 'level' ? 'level' : sortBy === 'xp' ? 'xp' : 'coins';
+    const secondaryOrder = sortBy === 'level' ? 'xp' : sortBy === 'xp' ? 'level' : 'level';
+    
     const query = supabase
       .from('users')
       .select('*')
       .eq('is_banned', false)
-      .order(sortBy === 'level' ? 'level' : 'coins', { ascending: false })
-      .order(sortBy === 'level' ? 'xp' : 'level', { ascending: false })
+      .order(orderColumn, { ascending: false })
+      .order(secondaryOrder, { ascending: false })
       .limit(50);
 
     const { data } = await query;
@@ -78,13 +81,16 @@ export default function RankingPage() {
           </Card>
         )}
 
-        <Tabs value={sortBy} onValueChange={(v) => setSortBy(v as 'level' | 'coins')} className="animate-slide-up">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={sortBy} onValueChange={(v) => setSortBy(v as 'level' | 'coins' | 'xp')} className="animate-slide-up">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="level" className="data-[state=active]:gradient-primary data-[state=active]:text-primary-foreground">
-              ⭐ Por Nível
+              ⭐ Nível
+            </TabsTrigger>
+            <TabsTrigger value="xp" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              ✨ XP Total
             </TabsTrigger>
             <TabsTrigger value="coins" className="data-[state=active]:gradient-golden data-[state=active]:text-golden-foreground">
-              💰 Por Coins
+              💰 Coins
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -152,10 +158,15 @@ export default function RankingPage() {
                     <div className="text-right">
                       {sortBy === 'coins' ? (
                         <CoinBadge amount={rankedUser.coins} size="sm" />
+                      ) : sortBy === 'xp' ? (
+                        <div className="text-sm">
+                          <span className="font-bold text-accent">{rankedUser.xp.toLocaleString('pt-BR')}</span>
+                          <span className="text-muted-foreground"> XP</span>
+                        </div>
                       ) : (
                         <div className="text-sm">
-                          <span className="font-bold text-primary">{rankedUser.xp}</span>
-                          <span className="text-muted-foreground"> XP</span>
+                          <span className="font-bold text-primary">Lv.{rankedUser.level}</span>
+                          <span className="text-muted-foreground text-xs ml-1">({rankedUser.xp} XP)</span>
                         </div>
                       )}
                     </div>
