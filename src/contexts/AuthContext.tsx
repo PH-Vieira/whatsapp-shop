@@ -156,8 +156,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Sua conta está banida.' };
     }
 
-    // Create session
-    const sessionToken = crypto.randomUUID();
+    // Create session - using fallback for browsers without crypto.randomUUID
+    const sessionToken = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     await supabase
