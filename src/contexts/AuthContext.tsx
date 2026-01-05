@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (whatsappNumber: string, code: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   requestCode: (whatsappNumber: string) => Promise<{ success: boolean; error?: string }>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(updatedSession);
         localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
       }
+    } else {
+      // Usuário não existe mais no banco - faz logout automático
+      console.log('[Auth] Usuário não encontrado no banco, fazendo logout');
+      setUser(null);
+      setSession(null);
+      localStorage.removeItem(SESSION_KEY);
+    }
+  };
+
+  const refreshUser = async () => {
+    if (user) {
+      await refreshUserData(user.id);
     }
   };
 
@@ -181,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, login, logout, requestCode }}>
+    <AuthContext.Provider value={{ user, session, isLoading, login, logout, requestCode, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
