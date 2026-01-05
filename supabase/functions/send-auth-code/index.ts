@@ -38,16 +38,39 @@ serve(async (req) => {
     console.log(`[send-auth-code] Enviando código ${code} para ${cleaned} (bot recebe: ${numberForBot})`);
     console.log(`[send-auth-code] Bot URL: ${botUrl}/send-auth-code`);
 
-    const response = await fetch(`${botUrl}/send-auth-code`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        whatsappNumber: numberForBot,
-        code,
-      }),
-    });
+    // Adiciona timeout de 10 segundos para evitar travamento
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    let response: Response;
+    try {
+      response = await fetch(`${botUrl}/send-auth-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          whatsappNumber: numberForBot,
+          code,
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      const isTimeout = fetchError instanceof Error && fetchError.name === 'AbortError';
+      console.error(`[send-auth-code] ${isTimeout ? 'Timeout' : 'Erro de conexão'}:`, fetchError);
+      return new Response(
+        JSON.stringify({ 
+          error: isTimeout 
+            ? 'Timeout ao conectar com o bot (10s)' 
+            : 'Erro ao conectar com o bot',
+          details: fetchError instanceof Error ? fetchError.message : 'Erro desconhecido'
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
