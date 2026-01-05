@@ -120,43 +120,56 @@ setInterval(() => {
 
 ---
 
-## 3. Novo comando `!emojis` (adicione em levelCommand.js ou crie um arquivo separado)
+## 3. Novo comando `!emojis` (COPIE E COLE NO SEU levelCommand.js)
+
+**IMPORTANTE**: Este código deve ser adicionado dentro do seu handler de comandos, onde você já processa `!level`, `!ranking`, etc.
 
 ```javascript
-const { listUserEmojis, activateEmoji, deactivateEmoji, extractEmojiFromName } = require('../../lib/emojiReactionHandler');
+// NO INÍCIO DO ARQUIVO, adicione o import:
+const { listUserEmojis, activateEmoji, deactivateEmoji } = require('../../lib/emojiReactionHandler');
 
-// Dentro do handler de comandos:
+// DENTRO DO HANDLER DE COMANDOS, adicione:
 
-// Comando !emojis
+// ================= COMANDO !EMOJIS =================
 if (text.toLowerCase() === '!emojis') {
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const whatsappNumber = sender.replace('@s.whatsapp.net', '').replace('@lid', '');
+    
+    console.log('[DEBUG] !emojis chamado por:', whatsappNumber);
+    
     const emojis = await listUserEmojis(whatsappNumber);
+    
+    console.log('[DEBUG] Emojis encontrados:', emojis);
     
     if (emojis.length === 0) {
         await sock.sendMessage(from, {
-            text: '💬 *Suas Reações*\n\nVocê ainda não tem nenhum emoji!\nCompre na loja: https://suaurl.com/store'
+            text: '💬 *Suas Reações*\n\nVocê ainda não tem nenhuma reação!\nCompre na loja para o bot reagir às suas mensagens!'
         });
         return;
     }
     
     let response = '💬 *Suas Reações*\n\n';
     emojis.forEach((e, i) => {
-        const status = e.isActive ? '✅' : '⬜';
+        const status = e.isActive ? '✅ (ativo)' : '⬜';
         response += `${status} ${e.emoji} - ${e.name}\n`;
     });
-    response += '\n_Use !ativaremoji [emoji] para ativar_';
-    response += '\n_Use !desativaremoji [emoji] para desativar_';
+    response += '\n📱 _Acesse seu perfil no site para ativar/desativar reações_';
     
     await sock.sendMessage(from, { text: response });
+    return;
 }
 
-// Comando !ativaremoji
+// ================= COMANDO !ATIVAREMOJI =================
 if (text.toLowerCase().startsWith('!ativaremoji ')) {
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const whatsappNumber = sender.replace('@s.whatsapp.net', '').replace('@lid', '');
     const emoji = text.replace('!ativaremoji ', '').trim();
-    const userEmojis = await listUserEmojis(whatsappNumber);
     
+    const userEmojis = await listUserEmojis(whatsappNumber);
     const emojiItem = userEmojis.find(e => e.emoji === emoji);
+    
     if (!emojiItem) {
-        await sock.sendMessage(from, { text: '❌ Você não possui esse emoji!' });
+        await sock.sendMessage(from, { text: '❌ Você não possui esse emoji! Use !emojis para ver seus emojis.' });
         return;
     }
     
@@ -166,14 +179,18 @@ if (text.toLowerCase().startsWith('!ativaremoji ')) {
     } else {
         await sock.sendMessage(from, { text: `❌ ${result.error}` });
     }
+    return;
 }
 
-// Comando !desativaremoji
+// ================= COMANDO !DESATIVAREMOJI =================
 if (text.toLowerCase().startsWith('!desativaremoji ')) {
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const whatsappNumber = sender.replace('@s.whatsapp.net', '').replace('@lid', '');
     const emoji = text.replace('!desativaremoji ', '').trim();
-    const userEmojis = await listUserEmojis(whatsappNumber);
     
+    const userEmojis = await listUserEmojis(whatsappNumber);
     const emojiItem = userEmojis.find(e => e.emoji === emoji);
+    
     if (!emojiItem) {
         await sock.sendMessage(from, { text: '❌ Você não possui esse emoji!' });
         return;
@@ -183,6 +200,7 @@ if (text.toLowerCase().startsWith('!desativaremoji ')) {
     if (result.success) {
         await sock.sendMessage(from, { text: `✅ ${emoji} desativado!` });
     }
+    return;
 }
 ```
 
