@@ -23,7 +23,12 @@ function normalizeNumber(input) {
  * @param {string} whatsappNumber - Número do WhatsApp
  * @returns {Promise<string[]>} - Array de emojis ativos
  */
-async function getUserActiveEmojis(whatsappNumber) {
+/**
+ * Busca o emoji ativo de um usuário (apenas um por vez)
+ * @param {string} whatsappNumber - Número do WhatsApp
+ * @returns {Promise<string|null>} - Emoji ativo ou null
+ */
+async function getUserActiveEmoji(whatsappNumber) {
     const cleanNumber = normalizeNumber(whatsappNumber);
     
     // Primeiro, busca o usuário
@@ -34,23 +39,23 @@ async function getUserActiveEmojis(whatsappNumber) {
         .maybeSingle();
     
     if (userError || !user) {
-        console.log('[Emoji] Usuário não encontrado:', cleanNumber);
-        return [];
+        return null;
     }
     
-    // Busca emojis ativos
-    const { data: activeEmojis, error } = await supabase
+    // Busca emoji ativo (apenas um)
+    const { data: activeEmoji, error } = await supabase
         .from('user_active_emojis')
         .select('emoji')
         .eq('user_id', user.id)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .maybeSingle();
     
     if (error) {
-        console.error('[Emoji] Erro ao buscar emojis ativos:', error);
-        return [];
+        console.error('[Emoji] Erro ao buscar emoji ativo:', error);
+        return null;
     }
     
-    return (activeEmojis || []).map(e => e.emoji);
+    return activeEmoji?.emoji || null;
 }
 
 /**
@@ -130,36 +135,31 @@ async function deactivateEmoji(whatsappNumber, productId) {
 }
 
 /**
- * Reage a uma mensagem com os emojis ativos do usuário
+ * Reage a uma mensagem com o emoji ativo do usuário
  * @param {object} sock - Instância do Baileys socket
  * @param {object} msg - Mensagem recebida
- * @param {string[]} emojis - Array de emojis para reagir
+ * @param {string} emoji - Emoji para reagir
  */
-async function reactToMessage(sock, msg, emojis) {
-    if (!emojis || emojis.length === 0) return;
+async function reactToMessage(sock, msg, emoji) {
+    if (!emoji) return;
     
     const chatId = msg.key.remoteJid;
     
-    for (const emoji of emojis) {
-        try {
-            await sock.sendMessage(chatId, {
-                react: {
-                    text: emoji,
-                    key: msg.key
-                }
-            });
-            console.log(`[Emoji] Reagido com ${emoji}`);
-            
-            // Pequeno delay entre reações para evitar rate limit
-            await new Promise(resolve => setTimeout(resolve, 300));
-        } catch (error) {
-            console.error('[Emoji] Erro ao reagir:', error);
-        }
+    try {
+        await sock.sendMessage(chatId, {
+            react: {
+                text: emoji,
+                key: msg.key
+            }
+        });
+        console.log(`[Emoji] Reagido com ${emoji}`);
+    } catch (error) {
+        console.error('[Emoji] Erro ao reagir:', error);
     }
 }
 
 /**
- * Processa mensagem e reage automaticamente se usuário tem emojis ativos
+ * Processa mensagem e reage automaticamente se usuário tem emoji ativo
  * Chame esta função no seu handler de mensagens principal
  * 
  * @param {object} sock - Instância do Baileys socket
@@ -170,10 +170,10 @@ async function processEmojiReactions(sock, msg) {
         const sender = msg.key.participant || msg.key.remoteJid;
         const cleanNumber = sender.replace('@s.whatsapp.net', '').replace('@lid', '');
         
-        const emojis = await getUserActiveEmojis(cleanNumber);
+        const emoji = await getUserActiveEmoji(cleanNumber);
         
-        if (emojis.length > 0) {
-            await reactToMessage(sock, msg, emojis);
+        if (emoji) {
+            await reactToMessage(sock, msg, emoji);
         }
     } catch (error) {
         console.error('[Emoji] Erro ao processar reações:', error);
@@ -237,7 +237,7 @@ function extractEmojiFromName(name) {
 }
 
 module.exports = {
-    getUserActiveEmojis,
+    getUserActiveEmoji,
     activateEmoji,
     deactivateEmoji,
     reactToMessage,

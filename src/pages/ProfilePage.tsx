@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, LogOut, Package, History, Award, MessageCircle, Calendar, Sparkles, Pencil, Check, X } from 'lucide-react';
 import { AvatarUpload } from '@/components/ui/AvatarUpload';
+import { EmojiSelector } from '@/components/profile/EmojiSelector';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { UserItem, Transaction, UserBadge, Product } from '@/lib/types';
@@ -190,6 +191,9 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Emoji Selector */}
+        <EmojiSelector userId={user.id} />
 
         {/* Tabs */}
         {isLoading ? (
