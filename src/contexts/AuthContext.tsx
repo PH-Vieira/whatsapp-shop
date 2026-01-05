@@ -76,9 +76,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Erro ao gerar código. Tente novamente.' };
     }
 
-    // In a real app, the bot would send this code via WhatsApp
-    // For now, we'll just log it (in production, integrate with your bot API)
-    console.log(`[DEV] Código para ${whatsappNumber}: ${code}`);
+    // Send code via WhatsApp bot
+    try {
+      const { error: funcError } = await supabase.functions.invoke('send-auth-code', {
+        body: { whatsappNumber, code },
+      });
+
+      if (funcError) {
+        console.error('[Auth] Erro ao enviar código via bot:', funcError);
+        // Ainda assim salva o código, usuário pode pedir reenvio
+        console.log(`[DEV] Código para ${whatsappNumber}: ${code}`);
+      }
+    } catch (err) {
+      console.error('[Auth] Erro na função:', err);
+      console.log(`[DEV] Código para ${whatsappNumber}: ${code}`);
+    }
 
     return { success: true };
   };
