@@ -159,18 +159,67 @@ async function reactToMessage(sock, msg, emoji) {
 }
 
 /**
+ * Extrai o número real do sender (funciona para grupos e privado)
+ * Em grupos, pode vir como @lid, então precisamos resolver
+ */
+async function extractRealNumber(sock, msg) {
+    const isGroup = msg.key.remoteJid?.endsWith('@g.us');
+    let sender = isGroup ? msg.key.participant : msg.key.remoteJid;
+    
+    if (!sender) return null;
+    
+    // Se for @lid, tenta resolver para número real
+    if (sender.includes('@lid')) {
+        // Tenta pegar do participantAlt se disponível
+        if (msg.key.participantAlt) {
+            sender = msg.key.participantAlt;
+        } else {
+            // Tenta usar o signal store para resolver
+            try {
+                const store = sock?.authState?.creds?.me;
+                // Fallback: remove @lid e usa o que temos
+                sender = sender.replace('@lid', '@s.whatsapp.net');
+            } catch (e) {
+                console.log('[Emoji] Não foi possível resolver @lid:', e.message);
+            }
+        }
+    }
+    
+    // Limpa o número
+    return sender.replace('@s.whatsapp.net', '').replace('@lid', '');
+}
+
+/**
  * Processa mensagem e reage automaticamente se usuário tem emoji ativo
  * Chame esta função no seu handler de mensagens principal
  * 
  * @param {object} sock - Instância do Baileys socket
  * @param {object} msg - Mensagem recebida
+ * @param {boolean} debug - Ativar logs de debug
  */
-async function processEmojiReactions(sock, msg) {
+async function processEmojiReactions(sock, msg, debug = false) {
     try {
-        const sender = msg.key.participant || msg.key.remoteJid;
-        const cleanNumber = sender.replace('@s.whatsapp.net', '').replace('@lid', '');
+        const isGroup = msg.key.remoteJid?.endsWith('@g.us');
+        const rawSender = isGroup ? msg.key.participant : msg.key.remoteJid;
+        
+        if (debug) {
+            console.log('[Emoji DEBUG] isGroup:', isGroup);
+            console.log('[Emoji DEBUG] rawSender:', rawSender);
+        }
+        
+        // Extrai número real
+        const cleanNumber = await extractRealNumber(sock, msg);
+        
+        if (!cleanNumber) {
+            if (debug) console.log('[Emoji DEBUG] Não foi possível extrair número');
+            return;
+        }
+        
+        if (debug) console.log('[Emoji DEBUG] cleanNumber:', cleanNumber);
         
         const emoji = await getUserActiveEmoji(cleanNumber);
+        
+        if (debug) console.log('[Emoji DEBUG] emoji ativo:', emoji);
         
         if (emoji) {
             await reactToMessage(sock, msg, emoji);
@@ -235,5 +284,6 @@ module.exports = {
     reactToMessage,
     processEmojiReactions,
     listUserEmojis,
-    extractEmojiFromName
+    extractEmojiFromName,
+    extractRealNumber
 };
